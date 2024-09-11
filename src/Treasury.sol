@@ -50,6 +50,24 @@ contract Treasury is ITreasury {
         emit PresaleStarted(token, presaleInfo.endTime);
     }
 
+    function cancelErc20Presale(address token) external override {
+        PresaleInfo storage presaleInfo = s_presaleInfo[token];
+
+        if (presaleInfo.owner != msg.sender) {
+            revert Treasury__CallerNotOwner();
+        }
+
+        if (presaleInfo.status != PresaleStatus.PENDING) {
+            revert Treasury__PresaleCannotBeCancelled();
+        }
+
+        delete s_presaleInfo[token];
+        delete s_tokenInfo[token];
+
+        SafeTransferLib.safeTransfer(presaleInfo.tokenInfo.token, msg.sender, presaleInfo.tokenInfo.amount);
+        emit PresaleCancelled(token);
+    }
+
     function previewPresalePrice(uint256 _tokenAmount, uint256 _amountToRaise)
         external
         pure

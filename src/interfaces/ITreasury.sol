@@ -10,9 +10,11 @@ interface ITreasury {
     error Treasury__PresaleAlreadyCreatedError();
     error Treasury__PresaleStartError();
     error Treasury__CallerNotOwner();
+    error Treasury__PresaleCannotBeCancelled();
 
     event PresaleCreated(address indexed token, uint256 indexed price);
     event PresaleStarted(address indexed token, uint256 indexed endTime);
+    event PresaleCancelled(address indexed token);
 
     /**
      * @notice Struct for presale token
@@ -64,6 +66,7 @@ interface ITreasury {
      * @param _amount -  Amount of tokens available for sale
      * @param _amountToRaise - Amount of native token to raise
      * @notice Create a presale for an ERC20 token with the goal of raising a certain amount of native tokens
+     * @dev The tokens stay locked in the treasury until the presale ends
      */
     function createErc20Presale(address _token, uint256 _amount, uint256 _amountToRaise) external;
 
@@ -72,6 +75,12 @@ interface ITreasury {
      * @notice Start the presale for the ERC20 token
      */
     function startErc20Presale(address token, uint256 _duration) external;
+
+    /**
+     * @param token - Address of the token
+     * @notice Cancel the presale for the ERC20 token
+     */
+    function cancelErc20Presale(address token) external;
 
     /**
      * @param _tokenAmount -  Amount of tokens available for sale

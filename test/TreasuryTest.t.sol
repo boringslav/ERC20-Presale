@@ -125,6 +125,44 @@ contract TreasuryTest is Test {
     }
 
     /**
+     *  Presale Cancel
+     */
+    function testCancelErc20Presale() external {
+        vm.startBroadcast(TOKEN_OFFERER);
+        // Create Presale
+        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+
+        // Cancel Presale
+        s_treasury.cancelErc20Presale(address(s_erc20Mock));
+
+        ITreasury.PresaleInfo memory presaleInfo = s_treasury.getPresaleInfo(address(s_erc20Mock));
+        assertEq(presaleInfo.amountToRaise, 0);
+        assertEq(presaleInfo.raisedAmount, 0);
+        assertEq(presaleInfo.tokenInfo.token, address(0));
+    }
+
+    function testCancelErc20PresaleRevertWrongOwner() external {
+        vm.broadcast(TOKEN_OFFERER);
+        // Create Presale
+        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+
+        vm.broadcast(USER1);
+        vm.expectRevert(ITreasury.Treasury__CallerNotOwner.selector);
+        s_treasury.cancelErc20Presale(address(s_erc20Mock));
+    }
+
+    function testCancelErc20PresaleRevertWrongStatus() external {
+        vm.startBroadcast(TOKEN_OFFERER);
+        // Create Presale
+        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+        vm.expectRevert(ITreasury.Treasury__PresaleCannotBeCancelled.selector);
+        s_treasury.cancelErc20Presale(address(s_erc20Mock));
+
+        vm.stopBroadcast();
+    }
+
+    /**
      *  Presale Price
      */
     function testPresalePrice() external {
