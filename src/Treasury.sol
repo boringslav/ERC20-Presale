@@ -8,7 +8,25 @@ import {PresaleUtils} from "./lib/PresaleUtils.sol";
 contract Treasury is ITreasury {
     mapping(address token => PresaleInfo) public s_presaleInfo;
     mapping(address token => TokenInfo) public s_tokenInfo;
+    mapping(address buyer => mapping(address token => uint256 amount)) public s_userPurchasedTokens;
 
+    modifier checkIsPresaleActive(address token) {
+        PresaleInfo storage presaleInfo = s_presaleInfo[token];
+        TokenInfo storage tokenInfo = s_tokenInfo[token];
+
+        if (presaleInfo.endTime < block.timestamp) {
+            presaleInfo.status = PresaleStatus.COMPLETED;
+        }
+
+        if (tokenInfo.amount == tokenInfo.soldAmount) {
+            presaleInfo.status = PresaleStatus.COMPLETED;
+        }
+        _;
+    }
+
+    /**
+     * @inheritdoc ITreasury
+     */
     function createErc20Presale(address _token, uint256 _tokenAmount, uint256 _amountToRaise) external override {
         if (s_presaleInfo[_token].owner != address(0)) {
             revert Treasury__PresaleAlreadyCreatedError();
@@ -33,6 +51,9 @@ contract Treasury is ITreasury {
         emit PresaleCreated(_token, tokenPrice);
     }
 
+    /**
+     * @inheritdoc ITreasury
+     */
     function startErc20Presale(address token, uint256 _duration) external override {
         PresaleInfo storage presaleInfo = s_presaleInfo[token];
 
@@ -50,6 +71,9 @@ contract Treasury is ITreasury {
         emit PresaleStarted(token, presaleInfo.endTime);
     }
 
+    /**
+     * @inheritdoc ITreasury
+     */
     function cancelErc20Presale(address token) external override {
         PresaleInfo storage presaleInfo = s_presaleInfo[token];
 
@@ -68,6 +92,37 @@ contract Treasury is ITreasury {
         emit PresaleCancelled(token);
     }
 
+    /**
+     * @inheritdoc ITreasury
+     */
+    function buyErc20Presale(address _token, uint256 amount) external payable override checkIsPresaleActive(_token) {
+        PresaleInfo storage presaleInfo = s_presaleInfo[_token];
+        TokenInfo storage tokenInfo = s_tokenInfo[_token];
+        uint256 priceForAmount = amount * tokenInfo.price;
+
+        if (presaleInfo.status != PresaleStatus.ACTIVE) {
+            revert Treasury__PresaleNotActive();
+        }
+
+        if (msg.value < priceForAmount) {
+            revert Treasury__InsufficientFunds();
+        }
+
+        presaleInfo.raisedAmount += priceForAmount;
+        tokenInfo.soldAmount += amount;
+        s_userPurchasedTokens[msg.sender][_token] += amount;
+        uint256 refund = msg.value - priceForAmount;
+
+        if (refund > 0) {
+            SafeTransferLib.safeTransferETH(msg.sender, refund);
+        }
+
+        emit PresaleTokenBought(_token, amount, msg.sender);
+    }
+
+    /**
+     * @inheritdoc ITreasury
+     */
     function previewPresalePrice(uint256 _tokenAmount, uint256 _amountToRaise)
         external
         pure
@@ -77,11 +132,24 @@ contract Treasury is ITreasury {
         return PresaleUtils.calculatePresalePrice(_tokenAmount, _amountToRaise);
     }
 
+    /**
+     * @inheritdoc ITreasury
+     */
     function getPresaleInfo(address token) external view override returns (PresaleInfo memory) {
         return s_presaleInfo[token];
     }
 
+    /**
+     * @inheritdoc ITreasury
+     */
     function getTokenInfo(address token) external view override returns (TokenInfo memory) {
         return s_tokenInfo[token];
+    }
+
+    /**
+     * @inheritdoc ITreasury
+     */
+    function getUserPurchasedTokens(address user, address token) external view override returns (uint256) {
+        return s_userPurchasedTokens[user][token];
     }
 }

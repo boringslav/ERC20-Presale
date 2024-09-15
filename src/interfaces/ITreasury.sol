@@ -11,10 +11,14 @@ interface ITreasury {
     error Treasury__PresaleStartError();
     error Treasury__CallerNotOwner();
     error Treasury__PresaleCannotBeCancelled();
+    error Treasury__PresaleNotActive();
+    error Treasury__TokenLimitReached();
+    error Treasury__InsufficientFunds();
 
     event PresaleCreated(address indexed token, uint256 indexed price);
     event PresaleStarted(address indexed token, uint256 indexed endTime);
     event PresaleCancelled(address indexed token);
+    event PresaleTokenBought(address indexed token, uint256 indexed amount, address indexed buyer);
 
     /**
      * @notice Struct for presale token
@@ -83,6 +87,13 @@ interface ITreasury {
     function cancelErc20Presale(address token) external;
 
     /**
+     * @param token - Address of the token
+     * @param amount - Amount of tokens to buy
+     * @notice Buy tokens in the presale
+     */
+    function buyErc20Presale(address token, uint256 amount) external payable;
+
+    /**
      * @param _tokenAmount -  Amount of tokens available for sale
      * @param _amountToRaise - Amount of native token to raise
      * @notice Preview the price of the token in the presale based on the token supply and the amount to raise
@@ -98,8 +109,15 @@ interface ITreasury {
      */
     function getPresaleInfo(address token) external view returns (PresaleInfo memory);
     /**
-     *  @notice Get the token information
+     * @notice Get the token information
      * @param token - Address of the token
      */
     function getTokenInfo(address token) external view returns (TokenInfo memory);
+
+    /**
+     *  @notice Get the amount of tokens purchased by a user
+     *  @param user - Address of the user
+     *  @param token - Address of the presale token
+     */
+    function getUserPurchasedTokens(address user, address token) external view returns (uint256);
 }

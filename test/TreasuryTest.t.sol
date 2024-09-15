@@ -26,7 +26,7 @@ contract TreasuryTest is Test {
         // Deal Some $
         vm.deal(TREASURY_DEPLOYER, 100 ether);
         vm.deal(TOKEN_OFFERER, 100 ether);
-        vm.deal(USER1, 100 ether);
+        vm.deal(USER1, 1000 ether);
 
         // Deploy Treasury contract
         vm.broadcast(TREASURY_DEPLOYER);
@@ -54,8 +54,8 @@ contract TreasuryTest is Test {
      */
     function testCreateErc20Presale() public {
         vm.startBroadcast(TOKEN_OFFERER);
-        uint256 tokenAmount = 100 ether;
-        uint256 amountToRaise = 100 ether;
+        uint256 tokenAmount = 100;
+        uint256 amountToRaise = 100;
 
         // Create Presale
         vm.expectEmit();
@@ -82,22 +82,13 @@ contract TreasuryTest is Test {
         assertEq(uint8(presaleInfo.status), uint8(ITreasury.PresaleStatus.PENDING));
     }
 
-    function testCreateErc20PresaleRevert() external {
-        vm.startBroadcast(TOKEN_OFFERER);
-        uint256 tokenAmount = 100 ether;
-        uint256 amountToRaise = 100 ether;
-        s_treasury.createErc20Presale(address(s_erc20Mock), tokenAmount, amountToRaise);
-        vm.expectRevert(ITreasury.Treasury__PresaleAlreadyCreatedError.selector);
-        s_treasury.createErc20Presale(address(s_erc20Mock), tokenAmount, amountToRaise);
-    }
-
     /**
      *  Presale Start
      */
     function testStartErc20Presale() external {
         vm.startBroadcast(TOKEN_OFFERER);
         // Create Presale
-        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        createErc20Presale(address(s_erc20Mock), 100, 100 ether);
 
         // Start Presale
         vm.expectEmit();
@@ -113,7 +104,7 @@ contract TreasuryTest is Test {
 
     function testStartErc20PresaleRevert() external {
         vm.broadcast(TOKEN_OFFERER);
-        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        createErc20Presale(address(s_erc20Mock), 100, 100 ether);
 
         vm.expectRevert(ITreasury.Treasury__CallerNotOwner.selector);
         s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
@@ -130,7 +121,7 @@ contract TreasuryTest is Test {
     function testCancelErc20Presale() external {
         vm.startBroadcast(TOKEN_OFFERER);
         // Create Presale
-        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        createErc20Presale(address(s_erc20Mock), 100, 100 ether);
 
         // Cancel Presale
         s_treasury.cancelErc20Presale(address(s_erc20Mock));
@@ -144,7 +135,7 @@ contract TreasuryTest is Test {
     function testCancelErc20PresaleRevertWrongOwner() external {
         vm.broadcast(TOKEN_OFFERER);
         // Create Presale
-        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        createErc20Presale(address(s_erc20Mock), 100, 100 ether);
 
         vm.broadcast(USER1);
         vm.expectRevert(ITreasury.Treasury__CallerNotOwner.selector);
@@ -154,12 +145,89 @@ contract TreasuryTest is Test {
     function testCancelErc20PresaleRevertWrongStatus() external {
         vm.startBroadcast(TOKEN_OFFERER);
         // Create Presale
-        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        createErc20Presale(address(s_erc20Mock), 100, 100 ether);
         s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
         vm.expectRevert(ITreasury.Treasury__PresaleCannotBeCancelled.selector);
         s_treasury.cancelErc20Presale(address(s_erc20Mock));
 
         vm.stopBroadcast();
+    }
+
+    /**
+     * Presale Buy Tokens
+     */
+    function testPresaleBuyErc20Tokens() external {
+        // Create Presale
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+        vm.stopBroadcast();
+
+        // Buy Tokens
+        vm.startBroadcast(USER1);
+        uint256 pricePerToken = s_treasury.getTokenInfo(address(s_erc20Mock)).price;
+        s_treasury.buyErc20Presale{value: pricePerToken * 20}(address(s_erc20Mock), 20);
+        uint256 userBalance = s_treasury.getUserPurchasedTokens(USER1, address(s_erc20Mock));
+
+        ITreasury.PresaleInfo memory presaleInfo = s_treasury.getPresaleInfo(address(s_erc20Mock));
+        vm.stopBroadcast();
+
+        assertEq(presaleInfo.raisedAmount, pricePerToken * 20);
+        assertEq(userBalance, 20);
+    }
+
+    function testPresaleBuyErc20RevertPresaleNotActive() external {
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+        vm.stopBroadcast();
+
+        // Buy all the tokens
+        uint256 pricePerToken = s_treasury.getTokenInfo(address(s_erc20Mock)).price;
+        console2.log("Price Per Token: ", pricePerToken);
+
+        vm.broadcast(USER1);
+        s_treasury.buyErc20Presale{value: pricePerToken * 100}(address(s_erc20Mock), 100);
+        ITreasury.PresaleInfo memory presaleInfo = s_treasury.getPresaleInfo(address(s_erc20Mock));
+        ITreasury.TokenInfo memory tokenInfo = s_treasury.getTokenInfo(address(s_erc20Mock));
+
+        assertEq(presaleInfo.raisedAmount, 100 ether);
+        assertEq(tokenInfo.amount, 100);
+        assertEq(tokenInfo.soldAmount, 100);
+
+        // Try to buy more tokens
+        vm.broadcast(USER1);
+        vm.expectRevert(ITreasury.Treasury__PresaleNotActive.selector);
+        s_treasury.buyErc20Presale{value: pricePerToken * 20}(address(s_erc20Mock), 20);
+    }
+
+    function testPresaleBuyErc20RevertPresaleExpired() external {
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+        vm.stopBroadcast();
+
+        // Wait for Presale to expire
+        vm.warp(14 days);
+
+        // Buy Tokens
+        vm.startBroadcast(USER1);
+        uint256 pricePerToken = s_treasury.getTokenInfo(address(s_erc20Mock)).price;
+        vm.expectRevert(ITreasury.Treasury__PresaleNotActive.selector);
+        s_treasury.buyErc20Presale{value: pricePerToken * 20}(address(s_erc20Mock), 20);
+    }
+
+    function testPresaleBuyErc20RevertInsufficientFunds() external {
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+        vm.stopBroadcast();
+
+        // Buy Tokens
+        vm.startBroadcast(USER1);
+        uint256 pricePerToken = s_treasury.getTokenInfo(address(s_erc20Mock)).price;
+        vm.expectRevert(ITreasury.Treasury__InsufficientFunds.selector);
+        s_treasury.buyErc20Presale{value: pricePerToken * 20 - 1}(address(s_erc20Mock), 20);
     }
 
     /**
