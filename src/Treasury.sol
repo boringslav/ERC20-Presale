@@ -8,7 +8,7 @@ import {PresaleUtils} from "./lib/PresaleUtils.sol";
 contract Treasury is ITreasury {
     mapping(address token => PresaleInfo) public s_presaleInfo;
     mapping(address token => TokenInfo) public s_tokenInfo;
-    mapping(address buyer => mapping(address token => uint256 amount)) public s_userPurchasedTokens;
+    mapping(address token => mapping(address user => uint256 amount)) public s_userPurchasedTokens;
 
     modifier checkIsPresaleActive(address token) {
         PresaleInfo storage presaleInfo = s_presaleInfo[token];
@@ -110,7 +110,7 @@ contract Treasury is ITreasury {
 
         presaleInfo.raisedAmount += priceForAmount;
         tokenInfo.soldAmount += amount;
-        s_userPurchasedTokens[msg.sender][_token] += amount;
+        s_userPurchasedTokens[_token][msg.sender] += amount;
         uint256 refund = msg.value - priceForAmount;
 
         if (refund > 0) {
@@ -150,6 +150,6 @@ contract Treasury is ITreasury {
      * @inheritdoc ITreasury
      */
     function getUserPurchasedTokens(address user, address token) external view override returns (uint256) {
-        return s_userPurchasedTokens[user][token];
+        return s_userPurchasedTokens[token][user];
     }
 }
