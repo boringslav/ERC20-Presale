@@ -231,6 +231,59 @@ contract TreasuryTest is Test {
     }
 
     /**
+     * Presale Sell Tokens
+     */
+    function testSellErc20Presale() external {
+        // Create Presale
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+        vm.stopBroadcast();
+
+        // Buy Tokens
+        vm.startBroadcast(USER1);
+        // Get treasury balance before buying tokens
+        uint256 treasuryBalanceBefore = address(s_treasury).balance;
+
+        uint256 pricePerToken = s_treasury.getTokenInfo(address(s_erc20Mock)).price;
+        s_treasury.buyErc20Presale{value: pricePerToken * 20}(address(s_erc20Mock), 20);
+
+        // Sell Tokens
+        // Get user balance before selling tokens
+        uint256 userBalanceBefore = address(USER1).balance;
+
+        s_treasury.sellErc20Presale(address(s_erc20Mock), 20);
+        assertEq(s_treasury.getUserPurchasedTokens(USER1, address(s_erc20Mock)), 0);
+        assertEq(address(USER1).balance, userBalanceBefore + 20 ether - PresaleUtils.calculateFee(20 ether));
+        assertEq(address(s_treasury).balance, treasuryBalanceBefore + PresaleUtils.calculateFee(20 ether));
+        vm.stopBroadcast();
+    }
+
+    function testSellErc20PresaleRevertInsufficientFunds() external {
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+        vm.stopBroadcast();
+
+        vm.startBroadcast(USER1);
+        vm.expectRevert(ITreasury.Treasury__InsufficientFunds.selector);
+        s_treasury.sellErc20Presale(address(s_erc20Mock), 20);
+    }
+
+    function testSellErc20PresaleRevertPresaleNotActive() external {
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+        vm.stopBroadcast();
+
+        vm.warp(14 days);
+
+        vm.startBroadcast(USER1);
+        vm.expectRevert(ITreasury.Treasury__PresaleNotActive.selector);
+        s_treasury.sellErc20Presale(address(s_erc20Mock), 20);
+    }
+
+    /**
      *  Presale Price
      */
     function testPresalePrice() external {

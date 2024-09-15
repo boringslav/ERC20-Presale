@@ -123,6 +123,32 @@ contract Treasury is ITreasury {
     /**
      * @inheritdoc ITreasury
      */
+    function sellErc20Presale(address _token, uint256 _amount) external override checkIsPresaleActive(_token) {
+        PresaleInfo storage presaleInfo = s_presaleInfo[_token];
+        TokenInfo storage tokenInfo = s_tokenInfo[_token];
+
+        if (presaleInfo.status != PresaleStatus.ACTIVE) {
+            revert Treasury__PresaleNotActive();
+        }
+
+        if (s_userPurchasedTokens[_token][msg.sender] < _amount) {
+            revert Treasury__InsufficientFunds();
+        }
+
+        uint256 priceForAmount = _amount * tokenInfo.price;
+        presaleInfo.raisedAmount -= priceForAmount;
+        tokenInfo.soldAmount -= _amount;
+        s_userPurchasedTokens[_token][msg.sender] -= _amount;
+
+        uint256 amountToSend = PresaleUtils.calculateAmountWithFee(priceForAmount);
+        SafeTransferLib.safeTransferETH(msg.sender, amountToSend);
+
+        emit PresaleTokenSold(_token, _amount, msg.sender);
+    }
+
+    /**
+     * @inheritdoc ITreasury
+     */
     function previewPresalePrice(uint256 _tokenAmount, uint256 _amountToRaise)
         external
         pure

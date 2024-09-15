@@ -19,6 +19,7 @@ interface ITreasury {
     event PresaleStarted(address indexed token, uint256 indexed endTime);
     event PresaleCancelled(address indexed token);
     event PresaleTokenBought(address indexed token, uint256 indexed amount, address indexed buyer);
+    event PresaleTokenSold(address indexed token, uint256 indexed amount, address indexed seller);
 
     /**
      * @notice Struct for presale token
@@ -92,6 +93,15 @@ interface ITreasury {
      * @notice Buy tokens in the presale
      */
     function buyErc20Presale(address token, uint256 amount) external payable;
+
+    /**
+     *
+     * @param token - Address of the token
+     * @param amount - Amount of tokens to sell
+     * @notice Sell tokens in the presale
+     * @dev When users sell tokens that they have bought there is a 5% fee
+     */
+    function sellErc20Presale(address token, uint256 amount) external;
 
     /**
      * @param _tokenAmount -  Amount of tokens available for sale
