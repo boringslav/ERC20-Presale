@@ -11,7 +11,7 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 contract VestingModule is IVestingModule {
     ISablierV2LockupLinear public constant LOCKUP_LINEAR =
-        ISablierV2LockupLinear(0x3E435560fd0a03ddF70694b35b673C25c65aBB6C);
+        ISablierV2LockupLinear(0x3962f6585946823440d274aD7C719B02b49DE51E);
 
     /**
      * @inheritdoc IVestingModule

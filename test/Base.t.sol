@@ -25,7 +25,7 @@ contract Base is Test {
 
     function setUp() public {
         // Fork Mainnet
-        vm.createSelectFork(MAINNET_RPC_URL);
+        vm.createSelectFork(MAINNET_RPC_URL, 17613137);
 
         vm.startBroadcast(DEPLOYER);
         s_factory = new Factory();
@@ -44,7 +44,7 @@ contract Base is Test {
         // Deal Some $
         vm.deal(DEPLOYER, 100 ether);
         vm.deal(TOKEN_OFFERER, 100 ether);
-        vm.deal(USER1, 1000 ether);
+        vm.deal(USER1, 9999 ether);
 
         vm.startBroadcast(TOKEN_OFFERER);
         s_erc20Mock = new ERC20Mock("TestToken", "TT");

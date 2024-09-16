@@ -17,6 +17,29 @@ contract TreasuryTest is Base {
         s_treasury.createErc20Presale(_token, _tokenAmount, _amountToRaise);
     }
 
+    function startErc20Presale(address _token, uint256 _duration) internal {
+        s_treasury.startErc20Presale(_token, _duration);
+    }
+
+    function buyErc20Presale(address _token, uint256 _amount) internal {
+        s_treasury.buyErc20Presale{value: _amount * s_treasury.getTokenInfo(_token).price}(_token, _amount);
+    }
+
+    function startVesting() internal {
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
+        startErc20Presale(address(s_erc20Mock), 14 days);
+        vm.stopBroadcast();
+
+        vm.startBroadcast(USER1);
+        buyErc20Presale(address(s_erc20Mock), 100);
+        vm.stopBroadcast();
+
+        vm.startBroadcast(TOKEN_OFFERER);
+        s_treasury.startVesting(address(s_erc20Mock), 14 days);
+        vm.stopBroadcast();
+    }
+
     /**
      *  Presale Creation
      */
@@ -310,6 +333,16 @@ contract TreasuryTest is Base {
         vm.startBroadcast(USER1);
         vm.expectRevert(ITreasury.Treasury__CallerNotOwner.selector);
         s_treasury.startVesting(address(s_erc20Mock), 7 days);
+        vm.stopBroadcast();
+    }
+
+    function testUserVesting() external {
+        startVesting();
+
+        vm.startBroadcast(USER1);
+        s_treasury.vestTokens(address(s_erc20Mock));
+        assertEq(s_treasury.getUserPurchasedTokens(USER1, address(s_erc20Mock)), 0);
+
         vm.stopBroadcast();
     }
 

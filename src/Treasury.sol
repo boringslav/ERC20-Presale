@@ -219,6 +219,8 @@ contract Treasury is ITreasury {
         streamId =
             IVestingModule(s_vestingModule).createStream(amountToVest, token, presaleInfo.vestingDuration, msg.sender);
 
+        delete s_userPurchasedTokens[token][msg.sender];
+
         emit TokensVested(token, msg.sender, streamId);
     }
 
