@@ -6,6 +6,7 @@ import {ITreasury} from "./interfaces/ITreasury.sol";
 import {PresaleUtils} from "./lib/PresaleUtils.sol";
 
 contract Treasury is ITreasury {
+    uint256 public constant MINIMUM_PRESALE_DURATION = 7 days;
     mapping(address token => PresaleInfo) public s_presaleInfo;
     mapping(address token => TokenInfo) public s_tokenInfo;
     mapping(address token => mapping(address user => uint256 amount)) public s_userPurchasedTokens;
@@ -61,9 +62,14 @@ contract Treasury is ITreasury {
             revert Treasury__CallerNotOwner();
         }
 
+        if (_duration < MINIMUM_PRESALE_DURATION) {
+            revert Treasury__PresaleDurationTooShort();
+        }
+
         if (presaleInfo.status != PresaleStatus.PENDING) {
             revert Treasury__PresaleStartError();
         }
+
         presaleInfo.startTime = block.timestamp;
         presaleInfo.endTime = block.timestamp + _duration;
         presaleInfo.status = PresaleStatus.ACTIVE;

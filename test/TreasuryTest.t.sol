@@ -70,17 +70,30 @@ contract TreasuryTest is Base {
         vm.stopBroadcast();
     }
 
-    function testStartErc20PresaleRevert() external {
+    function testStartErc20PresaleRevertOnlyOwner() external {
         vm.broadcast(TOKEN_OFFERER);
         createErc20Presale(address(s_erc20Mock), 100, 100 ether);
 
+        vm.broadcast(USER1);
         vm.expectRevert(ITreasury.Treasury__CallerNotOwner.selector);
         s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+    }
 
+    function testStartErc20PresaleRevertDurationTooShort() external {
         vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100, 100 ether);
+        vm.expectRevert(ITreasury.Treasury__PresaleDurationTooShort.selector);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 1 days);
+    }
+
+    function testStartErc20PresaleRevertWrongStatus() external {
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100, 100 ether);
+
+        // Start Presale and change the status to ACTIVE
         s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
         vm.expectRevert(ITreasury.Treasury__PresaleStartError.selector);
-        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days); // Try to start the same presale again
     }
 
     /**
