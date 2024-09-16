@@ -2,18 +2,18 @@
 pragma solidity 0.8.27;
 
 import {Treasury} from "./Treasury.sol";
-import {BootstrapModule} from "./BootstrapModule.sol";
+import {VestingModule} from "./VestingModule.sol";
 import {IFactory} from "./interfaces/IFactory.sol";
 
 contract Factory is IFactory {
     error Factory__OnlyOwner();
 
     event TreasuryDeployed(address indexed treasury);
-    event BootstrapModuleDeployed(address indexed bootstrapModule);
+    event VestingModuleDeployed(address indexed bootstrapModule);
 
     address public s_owner;
     address public s_treasury;
-    address public s_bootstrapModule;
+    address public s_vestingModule;
 
     constructor() {
         s_owner = msg.sender;
@@ -25,8 +25,8 @@ contract Factory is IFactory {
     }
 
     function deployBootstrapModule(bytes32 _salt) external onlyOwner {
-        s_bootstrapModule = address(new BootstrapModule{salt: _salt}());
-        emit BootstrapModuleDeployed(s_bootstrapModule);
+        s_vestingModule = address(new VestingModule{salt: _salt}());
+        emit VestingModuleDeployed(s_vestingModule);
     }
 
     function deployTreasury(bytes32 _salt) external onlyOwner {

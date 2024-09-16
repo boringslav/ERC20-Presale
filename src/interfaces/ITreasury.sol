@@ -14,6 +14,7 @@ interface ITreasury {
     error Treasury__PresaleNotActive();
     error Treasury__TokenLimitReached();
     error Treasury__InsufficientFunds();
+    error Treasury__PresaleDurationTooShort();
 
     event PresaleCreated(address indexed token, uint256 indexed price);
     event PresaleStarted(address indexed token, uint256 indexed endTime);

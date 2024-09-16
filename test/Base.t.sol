@@ -5,30 +5,35 @@ import {Test} from "forge-std/Test.sol";
 import {Factory} from "../src/Factory.sol";
 import {ERC20Mock} from "./mocks/ERC20Mock.sol";
 import {ITreasury} from "../src/interfaces/ITreasury.sol";
-import {IBootstrapModule} from "../src/interfaces/IBootstrapModule.sol";
+import {IVestingModule} from "../src/interfaces/IVestingModule.sol";
 
 contract Base is Test {
+    string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
+
     Factory public s_factory;
 
     ITreasury public s_treasury;
-    IBootstrapModule public s_bootstrapModule;
+    IVestingModule public s_vestingModule;
     ERC20Mock public s_erc20Mock;
 
     bytes32 public s_treasurySalt = bytes32("TREASURY");
-    bytes32 public s_bootstrapModuleSalt = bytes32("BOOTSTRAP_MODULE");
+    bytes32 public s_vestingModuleSalt = bytes32("BOOTSTRAP_MODULE");
 
     address public DEPLOYER;
     address public TOKEN_OFFERER;
     address public USER1;
 
     function setUp() public {
+        // Fork Mainnet
+        vm.createSelectFork(MAINNET_RPC_URL);
+
         vm.startBroadcast(DEPLOYER);
         s_factory = new Factory();
         // Deploy Treasury and BootstrapModule
         s_factory.deployTreasury(s_treasurySalt);
         s_treasury = ITreasury(s_factory.s_treasury());
-        s_factory.deployBootstrapModule(s_bootstrapModuleSalt);
-        s_bootstrapModule = IBootstrapModule(s_factory.s_bootstrapModule());
+        s_factory.deployBootstrapModule(s_vestingModuleSalt);
+        s_vestingModule = IVestingModule(s_factory.s_vestingModule());
         vm.stopBroadcast();
 
         // Create contract addresses
@@ -54,6 +59,6 @@ contract Base is Test {
         vm.expectRevert(Factory.Factory__OnlyOwner.selector);
         s_factory.deployTreasury(s_treasurySalt);
         vm.expectRevert(Factory.Factory__OnlyOwner.selector);
-        s_factory.deployBootstrapModule(s_bootstrapModuleSalt);
+        s_factory.deployBootstrapModule(s_vestingModuleSalt);
     }
 }

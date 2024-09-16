@@ -175,6 +175,7 @@ contract TreasuryTest is Base {
         assertEq(presaleInfo.raisedAmount, 100 ether);
         assertEq(tokenInfo.amount, 100);
         assertEq(tokenInfo.soldAmount, 100);
+        assertEq(uint8(presaleInfo.status), uint8(ITreasury.PresaleStatus.COMPLETED));
 
         // Try to buy more tokens
         vm.broadcast(USER1);
@@ -189,7 +190,7 @@ contract TreasuryTest is Base {
         vm.stopBroadcast();
 
         // Wait for Presale to expire
-        vm.warp(14 days);
+        skip(14 days);
 
         // Buy Tokens
         vm.startBroadcast(USER1);
@@ -249,6 +250,7 @@ contract TreasuryTest is Base {
         vm.startBroadcast(USER1);
         vm.expectRevert(ITreasury.Treasury__InsufficientFunds.selector);
         s_treasury.sellErc20Presale(address(s_erc20Mock), 20);
+        vm.stopBroadcast();
     }
 
     function testSellErc20PresaleRevertPresaleNotActive() external {
@@ -257,11 +259,12 @@ contract TreasuryTest is Base {
         s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
         vm.stopBroadcast();
 
-        vm.warp(14 days);
+        skip(14 days);
 
         vm.startBroadcast(USER1);
         vm.expectRevert(ITreasury.Treasury__PresaleNotActive.selector);
         s_treasury.sellErc20Presale(address(s_erc20Mock), 20);
+        vm.stopBroadcast();
     }
 
     /**

@@ -119,6 +119,10 @@ contract Treasury is ITreasury {
         s_userPurchasedTokens[_token][msg.sender] += amount;
         uint256 refund = msg.value - priceForAmount;
 
+        if (tokenInfo.soldAmount == tokenInfo.amount) {
+            presaleInfo.status = PresaleStatus.COMPLETED;
+        }
+
         if (refund > 0) {
             SafeTransferLib.safeTransferETH(msg.sender, refund);
         }
