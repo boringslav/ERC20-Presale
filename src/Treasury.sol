@@ -4,12 +4,27 @@ pragma solidity 0.8.27;
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {ITreasury} from "./interfaces/ITreasury.sol";
 import {PresaleUtils} from "./lib/PresaleUtils.sol";
+import {IVestingModule} from "./interfaces/IVestingModule.sol";
+import {ERC20} from "solady/tokens/ERC20.sol";
 
 contract Treasury is ITreasury {
+    address public s_vestingModule;
+    address public s_owner;
     uint256 public constant MINIMUM_PRESALE_DURATION = 7 days;
     mapping(address token => PresaleInfo) public s_presaleInfo;
     mapping(address token => TokenInfo) public s_tokenInfo;
     mapping(address token => mapping(address user => uint256 amount)) public s_userPurchasedTokens;
+
+    constructor() {
+        s_owner = msg.sender;
+    }
+
+    modifier onlyOwner() {
+        if (msg.sender != s_owner) {
+            revert Treasury__CallerNotOwnerOfTreasury();
+        }
+        _;
+    }
 
     modifier checkIsPresaleActive(address token) {
         PresaleInfo storage presaleInfo = s_presaleInfo[token];
@@ -23,6 +38,13 @@ contract Treasury is ITreasury {
             presaleInfo.status = PresaleStatus.COMPLETED;
         }
         _;
+    }
+
+    /**
+     * @inheritdoc ITreasury
+     */
+    function setVestingModule(address vestingModule) external onlyOwner {
+        s_vestingModule = vestingModule;
     }
 
     /**
@@ -43,7 +65,8 @@ contract Treasury is ITreasury {
             startTime: 0,
             endTime: 0,
             status: PresaleStatus.PENDING,
-            owner: msg.sender
+            owner: msg.sender,
+            vestingDuration: 0
         });
 
         s_tokenInfo[_token] = tokenInfo;
@@ -154,6 +177,49 @@ contract Treasury is ITreasury {
         SafeTransferLib.safeTransferETH(msg.sender, amountToSend);
 
         emit PresaleTokenSold(_token, _amount, msg.sender);
+    }
+
+    /**
+     * @inheritdoc ITreasury
+     */
+    function startVesting(address token, uint40 duration) external override {
+        PresaleInfo storage presaleInfo = s_presaleInfo[token];
+        if (presaleInfo.owner != msg.sender) {
+            revert Treasury__CallerNotOwner();
+        }
+
+        if (presaleInfo.status != PresaleStatus.COMPLETED) {
+            revert Treasury__PresaleNotCompleted();
+        }
+
+        presaleInfo.vestingDuration = duration;
+        presaleInfo.status = PresaleStatus.VESTING;
+        uint256 amountRaised = presaleInfo.raisedAmount;
+        uint256 amountAfterFee = PresaleUtils.calculateAmountWithFee(amountRaised);
+
+        SafeTransferLib.safeTransferETH(msg.sender, amountAfterFee);
+    }
+
+    /**
+     * @inheritdoc ITreasury
+     */
+    function vestTokens(address token) external override returns (uint256 streamId) {
+        PresaleInfo storage presaleInfo = s_presaleInfo[token];
+        if (presaleInfo.status != PresaleStatus.VESTING) {
+            revert Treasury__PresaleNotVesting();
+        }
+
+        uint256 amountToVest = s_userPurchasedTokens[token][msg.sender];
+
+        if (amountToVest == 0) {
+            revert Treasury__NoTokensToVest();
+        }
+
+        ERC20(token).approve(s_vestingModule, amountToVest);
+        streamId =
+            IVestingModule(s_vestingModule).createStream(amountToVest, token, presaleInfo.vestingDuration, msg.sender);
+
+        emit TokensVested(token, msg.sender, streamId);
     }
 
     /**

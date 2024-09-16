@@ -126,7 +126,7 @@ contract TreasuryTest is Base {
     function testCancelErc20PresaleRevertWrongStatus() external {
         vm.startBroadcast(TOKEN_OFFERER);
         // Create Presale
-        createErc20Presale(address(s_erc20Mock), 100, 100 ether);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
         s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
         vm.expectRevert(ITreasury.Treasury__PresaleCannotBeCancelled.selector);
         s_treasury.cancelErc20Presale(address(s_erc20Mock));
@@ -172,7 +172,7 @@ contract TreasuryTest is Base {
         ITreasury.PresaleInfo memory presaleInfo = s_treasury.getPresaleInfo(address(s_erc20Mock));
         ITreasury.TokenInfo memory tokenInfo = s_treasury.getTokenInfo(address(s_erc20Mock));
 
-        assertEq(presaleInfo.raisedAmount, 100 ether);
+        assertEq(presaleInfo.raisedAmount, 100 * 1e18);
         assertEq(tokenInfo.amount, 100);
         assertEq(tokenInfo.soldAmount, 100);
         assertEq(uint8(presaleInfo.status), uint8(ITreasury.PresaleStatus.COMPLETED));
@@ -185,7 +185,7 @@ contract TreasuryTest is Base {
 
     function testPresaleBuyErc20RevertPresaleExpired() external {
         vm.startBroadcast(TOKEN_OFFERER);
-        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
         s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
         vm.stopBroadcast();
 
@@ -201,7 +201,7 @@ contract TreasuryTest is Base {
 
     function testPresaleBuyErc20RevertInsufficientFunds() external {
         vm.startBroadcast(TOKEN_OFFERER);
-        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
         s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
         vm.stopBroadcast();
 
@@ -218,7 +218,7 @@ contract TreasuryTest is Base {
     function testSellErc20Presale() external {
         // Create Presale
         vm.startBroadcast(TOKEN_OFFERER);
-        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
         s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
         vm.stopBroadcast();
 
@@ -243,7 +243,7 @@ contract TreasuryTest is Base {
 
     function testSellErc20PresaleRevertInsufficientFunds() external {
         vm.startBroadcast(TOKEN_OFFERER);
-        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
         s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
         vm.stopBroadcast();
 
@@ -255,7 +255,7 @@ contract TreasuryTest is Base {
 
     function testSellErc20PresaleRevertPresaleNotActive() external {
         vm.startBroadcast(TOKEN_OFFERER);
-        createErc20Presale(address(s_erc20Mock), 100 ether, 100 ether);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
         s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
         vm.stopBroadcast();
 
@@ -264,6 +264,52 @@ contract TreasuryTest is Base {
         vm.startBroadcast(USER1);
         vm.expectRevert(ITreasury.Treasury__PresaleNotActive.selector);
         s_treasury.sellErc20Presale(address(s_erc20Mock), 20);
+        vm.stopBroadcast();
+    }
+
+    /**
+     *  Presale Vesting
+     */
+    function testStartVesting() external {
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+        vm.stopBroadcast();
+
+        // Buy Tokens
+        vm.startBroadcast(USER1);
+        uint256 pricePerToken = s_treasury.getTokenInfo(address(s_erc20Mock)).price;
+        s_treasury.buyErc20Presale{value: pricePerToken * 100}(address(s_erc20Mock), 100);
+        vm.stopBroadcast();
+
+        // Start Vesting
+        vm.startBroadcast(TOKEN_OFFERER);
+        s_treasury.startVesting(address(s_erc20Mock), 7 days);
+        vm.stopBroadcast();
+
+        assertEq(uint8(s_treasury.getPresaleInfo(address(s_erc20Mock)).status), uint8(ITreasury.PresaleStatus.VESTING));
+        assertEq(s_treasury.getPresaleInfo(address(s_erc20Mock)).vestingDuration, 7 days);
+    }
+
+    function testStartVestingRevertNotCompleted() external {
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+
+        vm.expectRevert(ITreasury.Treasury__PresaleNotCompleted.selector);
+        s_treasury.startVesting(address(s_erc20Mock), 7 days);
+        vm.stopBroadcast();
+    }
+
+    function testStartVestingNotOwner() external {
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
+        s_treasury.startErc20Presale(address(s_erc20Mock), 7 days);
+        vm.stopBroadcast();
+
+        vm.startBroadcast(USER1);
+        vm.expectRevert(ITreasury.Treasury__CallerNotOwner.selector);
+        s_treasury.startVesting(address(s_erc20Mock), 7 days);
         vm.stopBroadcast();
     }
 

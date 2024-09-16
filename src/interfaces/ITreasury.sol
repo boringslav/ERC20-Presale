@@ -7,6 +7,7 @@ pragma solidity 0.8.27;
  * @notice  Interface for the Treasury contract
  */
 interface ITreasury {
+    error Treasury__CallerNotOwnerOfTreasury();
     error Treasury__PresaleAlreadyCreatedError();
     error Treasury__PresaleStartError();
     error Treasury__CallerNotOwner();
@@ -15,12 +16,16 @@ interface ITreasury {
     error Treasury__TokenLimitReached();
     error Treasury__InsufficientFunds();
     error Treasury__PresaleDurationTooShort();
+    error Treasury__PresaleNotCompleted();
+    error Treasury__PresaleNotVesting();
+    error Treasury__NoTokensToVest();
 
     event PresaleCreated(address indexed token, uint256 indexed price);
     event PresaleStarted(address indexed token, uint256 indexed endTime);
     event PresaleCancelled(address indexed token);
     event PresaleTokenBought(address indexed token, uint256 indexed amount, address indexed buyer);
     event PresaleTokenSold(address indexed token, uint256 indexed amount, address indexed seller);
+    event TokensVested(address indexed token, address indexed recipient, uint256 indexed streamId);
 
     /**
      * @notice Struct for presale token
@@ -44,6 +49,7 @@ interface ITreasury {
      * @param endTime - End time of the presale
      * @param status - Status of the presale
      * @param owner - Owner of the presale
+     * @param vestingDuration - Duration of the vesting in seconds
      */
     struct PresaleInfo {
         uint256 amountToRaise;
@@ -51,6 +57,7 @@ interface ITreasury {
         TokenInfo tokenInfo;
         uint256 startTime;
         uint256 endTime;
+        uint40 vestingDuration;
         PresaleStatus status;
         address owner;
     }
@@ -60,11 +67,13 @@ interface ITreasury {
      * @param PENDING - Presale is pending (created but not started)
      * @param ACTIVE - Presale is active (started)
      * @param COMPLETED - Presale is completed (ended)
+     * @param VESTING - Presale is in vesting (tokens are vested)
      */
     enum PresaleStatus {
         PENDING,
         ACTIVE,
-        COMPLETED
+        COMPLETED,
+        VESTING
     }
 
     /**
@@ -103,6 +112,25 @@ interface ITreasury {
      * @dev When users sell tokens that they have bought there is a 5% fee
      */
     function sellErc20Presale(address token, uint256 amount) external;
+
+    /**
+     * @param token - Address of the token
+     * @param duration - Duration of the vesting in seconds
+     * @notice Presale Token team can call this function to set the vesting duration and start the vesting
+     */
+    function startVesting(address token, uint40 duration) external;
+
+    /**
+     * @param token Address of the presale token
+     * @notice Users call this to put their tokens for vesting in Sablier
+     */
+    function vestTokens(address token) external returns (uint256 streamId);
+
+    /**
+     * @param vestingModule - Address of the vesting module
+     * @notice Set the vesting module (Only callable by the owner of the treasury)
+     */
+    function setVestingModule(address vestingModule) external;
 
     /**
      * @param _tokenAmount -  Amount of tokens available for sale
