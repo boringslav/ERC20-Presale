@@ -26,7 +26,7 @@ contract Factory is IFactory {
     }
 
     function deployVestingModule(bytes32 _salt, address _lockupLinear) external onlyOwner {
-        s_vestingModule = address(new VestingModule{salt: _salt}(_lockupLinear, s_owner));
+        s_vestingModule = address(new VestingModule{salt: _salt}(_lockupLinear));
         emit VestingModuleDeployed(s_vestingModule);
     }
 

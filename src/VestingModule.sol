@@ -11,16 +11,9 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 contract VestingModule is IVestingModule {
     ISablierV2LockupLinear public immutable LOCKUP_LINEAR;
-    address public s_owner;
 
-    constructor(address _lockupLinear, address _owner) {
+    constructor(address _lockupLinear) {
         LOCKUP_LINEAR = ISablierV2LockupLinear(_lockupLinear);
-        s_owner = _owner;
-    }
-
-    modifier onlyOwner() {
-        if (msg.sender != s_owner) revert VestingModule__CallerNotOwner();
-        _;
     }
 
     /**
@@ -50,5 +43,23 @@ contract VestingModule is IVestingModule {
 
         streamId = LOCKUP_LINEAR.createWithDurations(params);
         emit StreamCreated(_recipient, streamId, _amountToVest, _token, _duration);
+    }
+
+    /**
+     * @inheritdoc IVestingModule
+     */
+    function withdraw(uint256 _streamId) external {
+        LOCKUP_LINEAR.withdrawMax(_streamId, msg.sender);
+    }
+
+    /**
+     * @inheritdoc IVestingModule
+     */
+    function getStream(uint256 _streamId) external view returns (LockupLinear.StreamLL memory) {
+        return LOCKUP_LINEAR.getStream(_streamId);
+    }
+
+    function getAmountAvailableToWithdraw(uint256 _streamId) external view returns (uint128) {
+        return LOCKUP_LINEAR.withdrawableAmountOf(_streamId);
     }
 }
