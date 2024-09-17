@@ -17,9 +17,10 @@ interface ITreasury {
     error Treasury__InsufficientFunds();
     error Treasury__PresaleDurationTooShort();
     error Treasury__PresaleNotCompleted();
-    error Treasury__VestingNotStarted();
+    error Treas__VestingNotStarted();
     error Treasury__NoTokensToVest();
     error Treasury__VestingModuleNotSet();
+    error Treasury__VestingNotStarted();
 
     event PresaleCreated(address indexed token, uint256 indexed price);
     event PresaleStarted(address indexed token, uint256 indexed endTime);
@@ -27,7 +28,7 @@ interface ITreasury {
     event PresaleTokenBought(address indexed token, uint256 indexed amount, address indexed buyer);
     event PresaleTokenSold(address indexed token, uint256 indexed amount, address indexed seller);
     event TokensVested(address indexed token, address indexed recipient, uint256 indexed streamId);
-
+    event VestingStarted(address indexed token, uint40 indexed duration);
     /**
      * @notice Struct for presale token
      * @param token Address of the token
@@ -35,6 +36,7 @@ interface ITreasury {
      * @param amount Total amount of tokens available for sale
      * @param soldAmount Amount of tokens already sold
      */
+
     struct TokenInfo {
         address token;
         uint256 price;

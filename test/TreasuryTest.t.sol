@@ -9,6 +9,11 @@ import {Base} from "./Base.t.sol";
 contract TreasuryTest is Base {
     event PresaleCreated(address indexed token, uint256 indexed price);
     event PresaleStarted(address indexed token, uint256 indexed endTime);
+    event PresaleCancelled(address indexed token);
+    event PresaleTokenBought(address indexed token, uint256 indexed amount, address indexed buyer);
+    event PresaleTokenSold(address indexed token, uint256 indexed amount, address indexed seller);
+    event TokensVested(address indexed token, address indexed recipient, uint256 indexed streamId);
+    event VestingStarted(address indexed token, uint40 indexed duration);
 
     /**
      * Helper functions
@@ -128,6 +133,8 @@ contract TreasuryTest is Base {
         createErc20Presale(address(s_erc20Mock), 100, 100 ether);
 
         // Cancel Presale
+        vm.expectEmit();
+        emit PresaleCancelled(address(s_erc20Mock));
         s_treasury.cancelErc20Presale(address(s_erc20Mock));
 
         ITreasury.PresaleInfo memory presaleInfo = s_treasury.getPresaleInfo(address(s_erc20Mock));
@@ -170,6 +177,8 @@ contract TreasuryTest is Base {
         // Buy Tokens
         vm.startBroadcast(USER1);
         uint256 pricePerToken = s_treasury.getTokenInfo(address(s_erc20Mock)).price;
+        vm.expectEmit();
+        emit PresaleTokenBought(address(s_erc20Mock), 20, USER1);
         s_treasury.buyErc20Presale{value: pricePerToken * 20}(address(s_erc20Mock), 20);
         uint256 userBalance = s_treasury.getUserPurchasedTokens(USER1, address(s_erc20Mock));
 
@@ -256,6 +265,8 @@ contract TreasuryTest is Base {
         // Get user balance before selling tokens
         uint256 userBalanceBefore = address(USER1).balance;
 
+        vm.expectEmit();
+        emit PresaleTokenSold(address(s_erc20Mock), 20, USER1);
         s_treasury.sellErc20Presale(address(s_erc20Mock), 20);
         assertEq(s_treasury.getUserPurchasedTokens(USER1, address(s_erc20Mock)), 0);
         assertEq(address(USER1).balance, userBalanceBefore + 20 ether - PresaleUtils.calculateFee(20 ether));
@@ -306,6 +317,8 @@ contract TreasuryTest is Base {
 
         // Start Vesting
         vm.startBroadcast(TOKEN_OFFERER);
+        vm.expectEmit();
+        emit VestingStarted(address(s_erc20Mock), 7 days);
         s_treasury.startVesting(address(s_erc20Mock), 7 days);
         vm.stopBroadcast();
 
@@ -335,6 +348,9 @@ contract TreasuryTest is Base {
         vm.stopBroadcast();
     }
 
+    /**
+     *  User Vesting
+     */
     function testUserVesting() external {
         startVesting();
         // Set Vesting Module
@@ -367,11 +383,7 @@ contract TreasuryTest is Base {
         vm.stopBroadcast();
 
         vm.startBroadcast(USER1);
-        buyErc20Presale(address(s_erc20Mock), 90);
-        vm.stopBroadcast();
-
-        vm.startBroadcast(TOKEN_OFFERER);
-        s_treasury.startVesting(address(s_erc20Mock), 14 days);
+        buyErc20Presale(address(s_erc20Mock), 100);
         vm.stopBroadcast();
 
         vm.startBroadcast(DEPLOYER);
@@ -425,5 +437,9 @@ contract TreasuryTest is Base {
         amountToRaise = 0;
         vm.expectRevert(PresaleUtils.PresaleUtils__DivideByZeroError.selector);
         s_treasury.previewPresalePrice(tokenAmount, amountToRaise);
+    }
+
+    function testOwner() external view {
+        assertEq(s_treasury.owner(), DEPLOYER);
     }
 }

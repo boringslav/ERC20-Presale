@@ -198,12 +198,13 @@ contract Treasury is ITreasury {
         uint256 amountAfterFee = PresaleUtils.calculateAmountWithFee(amountRaised);
 
         SafeTransferLib.safeTransferETH(msg.sender, amountAfterFee);
+        emit VestingStarted(token, duration);
     }
 
     /**
      * @inheritdoc ITreasury
      */
-    function vestTokens(address token) external override returns (uint256 streamId) {
+    function vestTokens(address token) external override returns (uint256) {
         PresaleInfo storage presaleInfo = s_presaleInfo[token];
         if (presaleInfo.status != PresaleStatus.VESTING) {
             revert Treasury__VestingNotStarted();
@@ -219,12 +220,13 @@ contract Treasury is ITreasury {
         }
 
         ERC20(token).approve(s_vestingModule, amountToVest);
-        streamId =
+        uint256 streamId =
             IVestingModule(s_vestingModule).createStream(amountToVest, token, presaleInfo.vestingDuration, msg.sender);
 
         delete s_userPurchasedTokens[token][msg.sender];
 
         emit TokensVested(token, msg.sender, streamId);
+        return streamId;
     }
 
     /**
