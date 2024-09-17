@@ -10,8 +10,18 @@ import {ud60x18} from "@prb/math/src/UD60x18.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 contract VestingModule is IVestingModule {
-    ISablierV2LockupLinear public constant LOCKUP_LINEAR =
-        ISablierV2LockupLinear(0x3962f6585946823440d274aD7C719B02b49DE51E);
+    ISablierV2LockupLinear public immutable LOCKUP_LINEAR;
+    address public s_owner;
+
+    constructor(address _lockupLinear, address _owner) {
+        LOCKUP_LINEAR = ISablierV2LockupLinear(_lockupLinear);
+        s_owner = _owner;
+    }
+
+    modifier onlyOwner() {
+        if (msg.sender != s_owner) revert VestingModule__CallerNotOwner();
+        _;
+    }
 
     /**
      * @inheritdoc IVestingModule
@@ -21,7 +31,7 @@ contract VestingModule is IVestingModule {
         returns (uint256 streamId)
     {
         uint256 balanceBefore = IERC20(_token).balanceOf(address(this));
-        SafeTransferLib.safeTransfer(_token, msg.sender, _amountToVest);
+        SafeTransferLib.safeTransferFrom(_token, msg.sender, address(this), _amountToVest);
         uint256 balanceAfter = IERC20(_token).balanceOf(address(this));
         uint128 amountToVest = uint128(balanceAfter) - uint128(balanceBefore);
 

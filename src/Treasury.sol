@@ -15,8 +15,8 @@ contract Treasury is ITreasury {
     mapping(address token => TokenInfo) public s_tokenInfo;
     mapping(address token => mapping(address user => uint256 amount)) public s_userPurchasedTokens;
 
-    constructor() {
-        s_owner = msg.sender;
+    constructor(address _owner) {
+        s_owner = _owner;
     }
 
     modifier onlyOwner() {
@@ -206,7 +206,10 @@ contract Treasury is ITreasury {
     function vestTokens(address token) external override returns (uint256 streamId) {
         PresaleInfo storage presaleInfo = s_presaleInfo[token];
         if (presaleInfo.status != PresaleStatus.VESTING) {
-            revert Treasury__PresaleNotVesting();
+            revert Treasury__VestingNotStarted();
+        }
+        if (s_vestingModule == address(0)) {
+            revert Treasury__VestingModuleNotSet();
         }
 
         uint256 amountToVest = s_userPurchasedTokens[token][msg.sender];
@@ -255,5 +258,12 @@ contract Treasury is ITreasury {
      */
     function getUserPurchasedTokens(address user, address token) external view override returns (uint256) {
         return s_userPurchasedTokens[token][user];
+    }
+
+    /**
+     * @inheritdoc ITreasury
+     */
+    function owner() external view returns (address) {
+        return s_owner;
     }
 }

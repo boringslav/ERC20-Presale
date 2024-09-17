@@ -188,7 +188,6 @@ contract TreasuryTest is Base {
 
         // Buy all the tokens
         uint256 pricePerToken = s_treasury.getTokenInfo(address(s_erc20Mock)).price;
-        console2.log("Price Per Token: ", pricePerToken);
 
         vm.broadcast(USER1);
         s_treasury.buyErc20Presale{value: pricePerToken * 100}(address(s_erc20Mock), 100);
@@ -338,11 +337,63 @@ contract TreasuryTest is Base {
 
     function testUserVesting() external {
         startVesting();
+        // Set Vesting Module
+        vm.startBroadcast(DEPLOYER);
+        s_treasury.setVestingModule(s_factory.s_vestingModule());
+        vm.stopBroadcast();
 
         vm.startBroadcast(USER1);
         s_treasury.vestTokens(address(s_erc20Mock));
         assertEq(s_treasury.getUserPurchasedTokens(USER1, address(s_erc20Mock)), 0);
+        assertEq(s_erc20Mock.balanceOf(LOCKUP_LINEAR), 100);
+        vm.stopBroadcast();
+    }
 
+    function testUserVestingRevertVestingModuleNotSet() external {
+        vm.broadcast(DEPLOYER);
+        s_treasury.setVestingModule(address(0));
+
+        startVesting();
+        vm.startBroadcast(USER1);
+        vm.expectRevert(ITreasury.Treasury__VestingModuleNotSet.selector);
+        s_treasury.vestTokens(address(s_erc20Mock));
+        vm.stopBroadcast();
+    }
+
+    function testUserVestingRevertVestingNotStarted() external {
+        vm.startBroadcast(TOKEN_OFFERER);
+        createErc20Presale(address(s_erc20Mock), 100, 100);
+        startErc20Presale(address(s_erc20Mock), 14 days);
+        vm.stopBroadcast();
+
+        vm.startBroadcast(USER1);
+        buyErc20Presale(address(s_erc20Mock), 90);
+        vm.stopBroadcast();
+
+        vm.startBroadcast(TOKEN_OFFERER);
+        s_treasury.startVesting(address(s_erc20Mock), 14 days);
+        vm.stopBroadcast();
+
+        vm.startBroadcast(DEPLOYER);
+        s_treasury.setVestingModule(s_factory.s_vestingModule());
+        vm.stopBroadcast();
+
+        vm.startBroadcast(USER1);
+        vm.expectRevert(ITreasury.Treasury__VestingNotStarted.selector);
+        s_treasury.vestTokens(address(s_erc20Mock));
+        vm.stopBroadcast();
+    }
+
+    function testUserVestingRevertNoTokensToVest() external {
+        startVesting();
+
+        vm.startBroadcast(DEPLOYER);
+        s_treasury.setVestingModule(s_factory.s_vestingModule());
+        vm.stopBroadcast();
+
+        vm.startBroadcast(USER2);
+        vm.expectRevert(ITreasury.Treasury__NoTokensToVest.selector);
+        s_treasury.vestTokens(address(s_erc20Mock));
         vm.stopBroadcast();
     }
 

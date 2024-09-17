@@ -17,8 +17,9 @@ interface ITreasury {
     error Treasury__InsufficientFunds();
     error Treasury__PresaleDurationTooShort();
     error Treasury__PresaleNotCompleted();
-    error Treasury__PresaleNotVesting();
+    error Treasury__VestingNotStarted();
     error Treasury__NoTokensToVest();
+    error Treasury__VestingModuleNotSet();
 
     event PresaleCreated(address indexed token, uint256 indexed price);
     event PresaleStarted(address indexed token, uint256 indexed endTime);
@@ -159,4 +160,9 @@ interface ITreasury {
      *  @param token - Address of the presale token
      */
     function getUserPurchasedTokens(address user, address token) external view returns (uint256);
+
+    /**
+     * @notice Get the owner of the treasury
+     */
+    function owner() external view returns (address);
 }

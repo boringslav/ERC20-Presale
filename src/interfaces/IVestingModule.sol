@@ -2,6 +2,8 @@
 pragma solidity 0.8.27;
 
 interface IVestingModule {
+    error VestingModule__CallerNotOwner();
+
     event StreamCreated(address recipient, uint256 streamId, uint256 amountToVest, address token, uint40 duration);
 
     /**

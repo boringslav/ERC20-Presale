@@ -2,6 +2,7 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+evm_version = "shanghai"
 remappings = [
     "solady=lib/solady/src",
     "sablier/v2-core=lib/v2-core",
